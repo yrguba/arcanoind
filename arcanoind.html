@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div class="container">
+		<div class="ball"></div>
+		<div class="dashboard">
+			<div class="start-game-btn">Начать игру</div>
+		</div>
+	</div>
+	<div class="board-container">
+		<div class="board"></div>
+	</div>
+	
+</body>
+</html>
+
+<script>
+
+	let mask = [22,42,62,82,102,103,104,25,45,65,85,105,125,145,165,27,47,67,87,107,127,147,167,28,29,30,50,70,90,110,130,150,170,169,168, 32,52,72,92,112,113,114,35,55,75,95,115,135,155,175];
+
+
+	let sectorWidth = 40;
+	let sectorHeight = 40;
+	let sectors = [];
+	let container = document.querySelector('.container');
+	let gorizontalLength = container.clientWidth / sectorWidth;
+	let verticalLength = container.clientHeight / sectorHeight;
+	let sectorsQuantity = gorizontalLength * verticalLength;
+	let position = sectorsQuantity - Math.round(gorizontalLength * 1.5) - 3;
+	let delta = 1;
+	let step = -gorizontalLength;
+	let board = document.querySelector('.board');
+	let ball = document.querySelector('.ball');
+
+
+	function initBoard () {
+
+		board.addEventListener('mousedown', function (event) {
+			clickedBoardPoint = event.offsetX;
+			document.addEventListener('mousemove', moveListener, false);
+			document.addEventListener('mouseup', function () {
+				document.removeEventListener('mousemove', moveListener, false);
+			});
+		});
+
+		let moveListener = function (event) {
+			board.style.left = event.clientX - clickedBoardPoint + "px";
+		}
+
+		window.addEventListener("keydown", function (event) {
+			let keyCode = event.keyCode;
+			if (keyCode == 39 || keyCode == 68) {
+				board.style.left = board.offsetLeft + 10 + "px";
+			}
+
+			if (keyCode == 37 || keyCode == 65) {
+				board.style.left = board.offsetLeft - 10 + "px";
+			}
+		});
+	}
+
+
+
+	function initSectors () {
+		let row = 0;
+		let col = 0;
+
+		for (let i = 0; i < sectorsQuantity; i++) {
+
+			let sectorId = null,
+				sectorX = null,
+				sectorY = null,
+				isTopWall = false,
+				isBottomWall = false,
+				isLeftWall = false,
+				isRightWall = false,
+				isBrick = false;
+
+			sectorId = i;
+
+			if (i == 1) isLeftTCorner = true;
+			if (i == gorizontalLength) isRightTCorner = true;
+			if (i == sectorsQuantity - gorizontalLength) isLeftBCorner = true;
+			if (i == sectorsQuantity) isRightBCorner = true;
+
+			
+			if (i % gorizontalLength == 0) {
+				col = 0;
+				if (i != 0) {
+					row++;
+				}
+			}
+
+			sectorY = row * sectorHeight;
+			sectorX = col * sectorWidth;
+
+			if (sectorY == 0) isTopWall = true;
+			if (sectorY == container.clientHeight - sectorHeight) isBottomWall = true;
+			if (sectorX == 0) isLeftWall = true;
+			if (sectorX == container.clientWidth - sectorWidth) isRightWall = true;
+
+			if (mask.indexOf(i) !== -1) isBrick = true;
+
+
+			sectors[sectorId] =
+				{
+					sectorId: sectorId, 
+					sectorX: sectorX, 
+					sectorY: sectorY, 
+					isTopWall: isTopWall, 
+					isBottomWall: isBottomWall,
+					isLeftWall : isLeftWall,
+					isRightWall: isRightWall,
+					isBrick: isBrick,
+				}
+
+			col++;
+		}
+
+		renderBricks();
+		initBall();
+	}
+
+	function initBall () {
+		elementMoveTo(ball, position);
+	}
+
+	function initGame () {
+
+		let position = 267;
+		let delta = 1;
+		let step = -gorizontalLength;
+
+		let game = setInterval(function () {
+
+		if (sectors[position]['isBottomWall']) {
+			if (sectors[position]['sectorX'] > (board.offsetLeft - ball.clientWidth) 
+				&& sectors[position]['sectorX'] <  (board.offsetLeft + board.clientWidth)) {
+				step = -step;
+			} else {
+				clearInterval(game);
+				restartGame();
+			}
+		}
+		if (sectors[position]['isTopWall']) {
+			step = -step;
+
+		}
+		if (sectors[position]['isLeftWall'] || sectors[position]['isRightWall']) {
+			delta = -delta;
+		}
+		if (sectors[position]['isBrick']) {
+			delta = -delta;
+			sectors[position]['isBrick'] = false;
+			let brick = document.getElementById('brick-'+ position);
+			container.removeChild(brick);
+			animateBang(sectors[position]['sectorY'], sectors[position]['sectorX']);
+		}
+		if (sectors[position + 1]) {
+			if (sectors[position + 1]['isBrick']) {
+				step = -step;
+				delta = -delta;
+				sectors[position + 1]['isBrick'] = false;
+				let brick = document.getElementById('brick-'+ (position + 1));
+				container.removeChild(brick);
+				animateBang(sectors[position + 1]['sectorY'], sectors[position + 1]['sectorX']);
+			}
+		}
+		if (sectors[position - 1]) {
+			if (sectors[position - 1]['isBrick']) {
+				step = -step;
+				delta = -delta;
+				sectors[position - 1]['isBrick'] = false;
+				let brick = document.getElementById('brick-'+ (position - 1));
+				container.removeChild(brick);
+				animateBang(sectors[position - 1]['sectorY'], sectors[position - 1]['sectorX']);
+			}
+		}
+
+
+		position = position + step + delta;
+		elementMoveTo(ball, position);
+
+		},100);
+	}
+
+	function elementMoveTo (element, id) {
+
+		if (sectors[id]) {
+			element.style.left = sectors[id].sectorX + "px";
+			element.style.top = sectors[id].sectorY + "px";
+		}
+	}
+
+	function animateBang (cordY, cordX) {
+		let bang = document.createElement('div');
+		bang.setAttribute('class', 'bang');
+		bang.style.top = cordY - 15 + 'px';
+		bang.style.left = cordX -15 + 'px';
+		container.appendChild(bang);
+
+		setTimeout(function () {
+			bang.style.backgroundSize = "75%";
+			setTimeout(function () {
+				bang.style.backgroundSize = "100%";
+				setTimeout(function () {
+					bang.style.opacity = "0";
+					setTimeout(function () {
+						container.removeChild(bang);
+					},300);
+				},300);
+			},50);
+		},50);
+	}
+
+	function renderBricks () {
+		for (sector of sectors) {
+			
+			if (sector['isBrick']) {
+				let brick = document.createElement('div');
+				brick.setAttribute('class', 'brick');
+				brick.setAttribute('id', 'brick-' + sector['sectorId']);
+				brick.style.top = sector['sectorY'] + 'px';
+				brick.style.left = sector['sectorX'] + 'px';
+				container.appendChild(brick);
+			}
+		}
+	}
+
+	
+
+	let startGameBtn = document.querySelector('.start-game-btn');
+	let dashboard = document.querySelector('.dashboard');
+
+	startGameBtn.addEventListener('click', function () {
+		dashboard.style.display = "none";
+		initBoard();
+		initGame();
+	});
+
+	function restartGame () {
+		dashboard.style.display = "block";
+		let bricks = container.querySelectorAll('.brick');
+
+		for (brick of bricks) {
+			container.removeChild(brick);
+		}
+		initSectors();
+	}
+
+	initSectors();
+</script>
